@@ -10,8 +10,8 @@ Library           RPA.Robocorp.WorkItems
 Library           DateTime
 
 *** Variables ***
-${SEARCH_PHRASE}    Israel
-${NEWS_CATEGORY}    war
+${SEARCH_PHRASE}    Prince Andrew
+${NEWS_CATEGORY}    News
 ${NUM_MONTHS}       January
 ${OUTPUT_FILE}      ${CURDIR}/output/news_data.xlsx
 
@@ -50,9 +50,12 @@ Get News Articles
 
 Get News Data
     [Arguments]    ${news_item}
-    # Implement the logic to extract data from a single news article
-    # Return the extracted data
+    # Implement the logic to scrape news data from the news article item
     [Return]    ${data}
+
+Wait Until Element Is Visible    css:#search-field    timeout=10s
+Input Text    css:#search-field    ${SEARCH_PHRASE}
+Press Keys    css:#search-field    ENTER
 
 Close Browser
     Close All Browsers
