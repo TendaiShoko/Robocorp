@@ -1,33 +1,24 @@
 *** Settings ***
-Documentation     RPA BOT FOR NEW YORK TIMES
+Documentation     RPA BOT FOR NEW YORK POST
 Library           RPA.Browser.Selenium
 Library           RPA.Excel.Files
+Library           RPA.HTTP
+library           RPA.Robocorp.Vault
+library           RPA.Tables
+library           RPA.FileSystem
 Library           RPA.Robocorp.WorkItems
 Library           DateTime
-Resource          keywords.robot
 
 *** Variables ***
-${SEARCH_PHRASE}    YOUR_SEARCH_PHRASE
-${NEWS_CATEGORY}    YOUR_NEWS_CATEGORY
-${NUM_MONTHS}       YOUR_NUM_MONTHS
+${SEARCH_PHRASE}    Israel
+${NEWS_CATEGORY}    war
+${NUM_MONTHS}       January
 ${OUTPUT_FILE}      ${CURDIR}/output/news_data.xlsx
 
 *** Tasks ***
 Scrape News Data
-    Open Browser To Al Jazeera
+    Open Browser To NY Post
     Search For News
-    Process News Articles
-    [Teardown]    Close Browser
-
-*** Keywords ***
-Open Browser To NY post
-    Open Available Browser    https://nypost.com/
-
-Search For News
-    Input Text    css:#search-input    ${SEARCH_PHRASE}
-    Press Keys    css:#search-input    ENTER
-
-Process News Articles
     ${date_range}=    Get Date Range    ${NUM_MONTHS}
     ${news_items}=    Get News Articles    ${date_range}
     Create Workbook    ${OUTPUT_FILE}
@@ -35,6 +26,33 @@ Process News Articles
         ${data}=    Get News Data    ${item}
         Append Row To Worksheet    ${OUTPUT_FILE}    ${data}
     END
+    [Teardown]    Close Browser
+
+*** Keywords ***
+Open Browser To NY Post
+    Open Available Browser    https://nypost.com/
+
+Search For News
+    Input Text    css:#search-input    ${SEARCH_PHRASE}
+    Press Keys    css:#search-input    ENTER
+
+Get Date Range
+    [Arguments]    ${num_months}
+    # Implement the logic to calculate the date range based on ${num_months}
+    # Return the calculated date range
+    [Return]    ${date_range}
+
+Get News Articles
+    [Arguments]    ${date_range}
+    # Implement the logic to scrape news articles based on the date range
+    # Return a list of news article items
+    [Return]    ${news_items}
+
+Get News Data
+    [Arguments]    ${news_item}
+    # Implement the logic to extract data from a single news article
+    # Return the extracted data
+    [Return]    ${data}
 
 Close Browser
     Close All Browsers
