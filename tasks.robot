@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation     A simple RPA task for scraping news from a website.
+Documentation     RPA BOT FOR NEW YORK TIMES
 Library           RPA.Browser.Selenium
 Library           RPA.Excel.Files
 Library           RPA.Robocorp.WorkItems
@@ -20,8 +20,8 @@ Scrape News Data
     [Teardown]    Close Browser
 
 *** Keywords ***
-Open Browser To Al Jazeera
-    Open Available Browser    https://www.aljazeera.com/
+Open Browser To NY post
+    Open Available Browser    https://nypost.com/
 
 Search For News
     Input Text    css:#search-input    ${SEARCH_PHRASE}

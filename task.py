@@ -1,69 +1,100 @@
-from RPA.Browser.Selenium import Selenium
-from RPA.Excel.Files import Files
-from RPA.Robocorp.WorkItems import WorkItems
-import re
+import requests
+import lxml.html as html
+import os
 import datetime
 
-browser = Selenium()
-excel = Files()
-workitems = WorkItems()
+HOME_URL = 'https://nypost.com/'
 
-def get_search_parameters():
-    search_phrase = workitems.get_work_item_variable("search_phrase")
-    news_category = workitems.get_work_item_variable("news_category")
-    num_months = int(workitems.get_work_item_variable("num_months"))
-    return search_phrase, news_category, num_months
+X_CATEGORIES = '//div[@class="clearfix home-page-section A home-page-module" or @class="clearfix home-page-section B home-page-module"]/div/h2/a/text()'
+X_NEWS_X_CAT = '//div[@class="clearfix home-page-section A home-page-module" or @class="clearfix home-page-section B home-page-module"][]/div[@class="featured-stories"]/article/div/div/a/@href'
+X_TITLE = '//h1/text()'
+X_BODY = '//div[@class="entry-content entry-content-read-more"]/p/text()'
+X_IMAGES = '//div[@class="entry-content entry-content-read-more"]//img/@src'
 
-def open_site_and_search(search_phrase):
-    browser.open_available_browser("https://www.aljazeera.com/")
-    browser.input_text("css:#search-input", search_phrase)
-    browser.press_keys("css:#search-input", "ENTER")
 
-def process_news_items(search_phrase, num_months):
-    current_month = datetime.datetime.now().month
-    start_month = current_month - num_months + 1
 
-    excel.create_workbook("news_data.xlsx")
-    excel.rename_worksheet("Sheet", "News Data")
-    excel.append_rows_to_worksheet([["Title", "Date", "Description", "Picture Filename", "Count of Search Phrases", "Contains Money"]], "News Data")
-
-    news_items = browser.find_elements("css:article a")
-    for item in news_items:
-        title = browser.get_element_text(item)
-        date = browser.get_element_attribute(item, "href") # Assuming date is part of URL
-        description = "" # Assuming description is not immediately available
-
-        month_in_url = int(re.search(r'/202[0-9]/([0-9]+)/', date).group(1))
-        if month_in_url < start_month:
-            break
-
-        browser.click_element(item)
-        browser.wait_until_element_is_visible("css:.article-heading", timeout=10)
-        description = browser.get_element_text("css:.article-body") # Update with correct selector
-
-        phrase_count = title.count(search_phrase) + description.count(search_phrase)
-        contains_money = bool(re.search(r"\$\d+(\.\d+)?|\d+ (dollars|USD)", title + description))
-
-        image_url = browser.get_element_attribute("css:.article-image img", "src") # Update with correct selector
-        image_filename = download_image(image_url)
-        excel.append_rows_to_worksheet([[title, date, description, image_filename, phrase_count, contains_money]], "News Data")
-
-        browser.go_back()
-
-    excel.save_workbook("news_data.xlsx")
-
-def download_image(image_url):
-    image_filename = image_url.split("/")[-1]
-    browser.download(image_url, f"output/{image_filename}")
-    return image_filename
-
-def main():
+def parse_home():
     try:
-        search_phrase, news_category, num_months = get_search_parameters()
-        open_site_and_search(search_phrase)
-        process_news_items(search_phrase, num_months)
-    finally:
-        browser.close_browser()
+        response = requests.get(HOME_URL)
 
-if __name__ == "__main__":
-    main()
+        if response.status_code != 200:
+            raise ValueError(f'Server status code: {response.status_code}')
+
+        categories = response.content.decode('utf-8')
+        html_var = html.fromstring(categories)
+        list_categories = enumerate(html_var.xpath(X_CATEGORIES))
+        get_news(html_var, list_categories)
+    except ValueError as ve:
+        print(ve)
+
+
+def create_dir(name):
+    today = datetime.datetime.today().strftime('%Y-%m-%d')
+
+    if not os.path.isdir(today):
+        os.mkdir(today)
+
+    new_dir = f'{today}/{name}'
+
+    if os.path.isdir(new_dir):
+        return(new_dir)
+
+    os.mkdir(new_dir)
+
+    return(new_dir)
+
+
+def get_news(html_var, list_categories):
+
+    for category in list_categories:
+        category_id = category[0]+1
+        category_name = category[1]
+
+        cat_dir = create_dir(category_name)
+
+        category_x = X_NEWS_X_CAT.replace('[]', f'[{category_id}]')
+        links = html_var.xpath(category_x)
+
+        for link in links:
+            parce_notice(link, cat_dir)
+
+
+def parce_notice(link, cat_dir):
+    try:
+        response = requests.get(link)
+
+        if response.status_code != 200:
+            raise ValueError(f'Server status code: {response.status_code}')
+
+        notice = response.content.decode('utf-8')
+        notice_page = html.fromstring(notice)
+
+        title = notice_page.xpath(X_TITLE)[0].strip()
+
+        title = title.replace('\"', '')
+        title = title.replace(':', '')
+        title = title.replace('?', '')
+        title = title.replace('¿', '')
+        title = title.replace('!', '')
+        title = title.replace('¡', '')
+
+        body = notice_page.xpath(X_BODY)
+        with open(f'{cat_dir}/{title}.txt', 'w', encoding='utf-8') as f:
+            f.write(title)
+            f.write('\n\n')
+            for p in body:
+                f.write(p)
+                f.write('\n')
+
+    except ValueError as ve:
+        print(ve)
+    except OSError as ve:
+        print(ve)
+
+
+def run():
+    parse_home()
+
+
+if __name__ == '__main__':
+    run()
